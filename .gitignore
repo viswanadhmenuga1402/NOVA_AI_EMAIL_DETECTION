@@ -1,0 +1,28 @@
+# Build directory
+build/
+
+# Generated reports
+reports/
+
+# Output files
+output/
+
+# Executables
+*.exe
+
+# Object files
+*.o
+*.obj
+
+# Log files
+*.log
+
+# VS Code
+.vscode/
+
+# JetBrains IDEs
+.idea/
+
+# Windows system files
+Thumbs.db
+Desktop.ini
