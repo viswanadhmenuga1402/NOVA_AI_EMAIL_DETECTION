@@ -26,3 +26,7 @@ output/
 # Windows system files
 Thumbs.db
 Desktop.ini
+
+# Runtime files
+scan_history.txt
+latest_scan_report.txt
