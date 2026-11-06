@@ -45,30 +45,84 @@ vector<string> EmailScanner::detectURLs(
 
     vector<string> results;
 
-    regex urlPattern(
-        R"((https?://[^\s]+|www\.[^\s]+))",
-        regex_constants::icase
-    );
+    string token;
 
-    auto begin =
-        sregex_iterator(
-            message.begin(),
-            message.end(),
-            urlPattern
-        );
+    auto flush = [&](const string& raw) {
 
-    auto end =
-        sregex_iterator();
+        if (raw.empty())
+        {
+            return;
+        }
 
+        string url = raw;
 
-    for (auto it = begin;
-         it != end;
-         ++it) {
+        while (
+            !url.empty() &&
+            (
+                url.back() == '.' ||
+                url.back() == ',' ||
+                url.back() == '!' ||
+                url.back() == '?' ||
+                url.back() == ')' ||
+                url.back() == ';'
+            )
+        )
+        {
+            url.pop_back();
+        }
 
-        results.push_back(
-            it->str()
-        );
+        if (url.empty())
+        {
+            return;
+        }
+
+        string lower =
+            toLowerCase(url);
+
+        bool isUrl = false;
+
+        if (lower.rfind("http://", 0) == 0 ||
+            lower.rfind("https://", 0) == 0 ||
+            lower.rfind("www.", 0) == 0)
+        {
+            isUrl = true;
+        }
+        else
+        {
+            size_t slash =
+                url.find('/');
+
+            size_t dot =
+                url.find('.');
+
+            if (slash != string::npos &&
+                dot != string::npos &&
+                slash > dot)
+            {
+                isUrl = true;
+            }
+        }
+
+        if (isUrl)
+        {
+            results.push_back(url);
+        }
+    };
+
+    for (char ch : message)
+    {
+        if (isspace(static_cast<unsigned char>(ch)))
+        {
+            flush(token);
+            token.clear();
+        }
+        else
+        {
+            token += ch;
+        }
     }
+
+    flush(token);
 
     return results;
 }
@@ -112,8 +166,12 @@ vector<string> EmailScanner::detectKeywords(
     for (const string& word :
          keywords) {
 
-        if (text.find(word)
-            != string::npos) {
+        regex pattern(
+            "\\b" + word + "\\b",
+            regex_constants::icase
+        );
+
+        if (regex_search(text, pattern)) {
 
             found.push_back(word);
         }
@@ -159,9 +217,38 @@ vector<string> EmailScanner::detectMoneyPatterns(
     for (const string& pattern :
          moneyPatterns) {
 
-        if (text.find(pattern)
-            != string::npos) {
+        bool isAlpha = !pattern.empty();
 
+        for (char c : pattern)
+        {
+            if (!isalpha(static_cast<unsigned char>(c)))
+            {
+                isAlpha = false;
+                break;
+            }
+        }
+
+        bool matched = false;
+
+        if (isAlpha)
+        {
+            regex wordPattern(
+                "\\b" + pattern + "\\b",
+                regex_constants::icase
+            );
+
+            matched =
+                regex_search(text, wordPattern);
+        }
+        else
+        {
+            matched =
+                text.find(pattern)
+                != string::npos;
+        }
+
+        if (matched)
+        {
             found.push_back(pattern);
         }
     }
@@ -206,9 +293,27 @@ vector<string> EmailScanner::detectUrgencyWords(
     for (const string& word :
          urgencyWords) {
 
-        if (text.find(word)
-            != string::npos) {
+        bool matched = false;
 
+        if (word.find(' ') != string::npos)
+        {
+            matched =
+                text.find(word)
+                != string::npos;
+        }
+        else
+        {
+            regex wordPattern(
+                "\\b" + word + "\\b",
+                regex_constants::icase
+            );
+
+            matched =
+                regex_search(text, wordPattern);
+        }
+
+        if (matched)
+        {
             found.push_back(word);
         }
     }
@@ -253,9 +358,27 @@ vector<string> EmailScanner::detectSecurityRequests(
     for (const string& word :
          securityWords) {
 
-        if (text.find(word)
-            != string::npos) {
+        bool matched = false;
 
+        if (word.find(' ') != string::npos)
+        {
+            matched =
+                text.find(word)
+                != string::npos;
+        }
+        else
+        {
+            regex wordPattern(
+                "\\b" + word + "\\b",
+                regex_constants::icase
+            );
+
+            matched =
+                regex_search(text, wordPattern);
+        }
+
+        if (matched)
+        {
             found.push_back(word);
         }
     }

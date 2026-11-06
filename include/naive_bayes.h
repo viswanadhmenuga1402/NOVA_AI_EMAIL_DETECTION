@@ -31,7 +31,8 @@ public:
 
 
     // Train using SMS Spam Collection
-    void train(
+    // Returns true on success, false if the dataset could not be opened.
+    bool train(
         const string& filename
     );
 
@@ -52,6 +53,9 @@ public:
     string predict(
         const string& text
     );
+
+    // Whether the model has been trained
+    bool isTrained() const;
 
 
     // Confidence level

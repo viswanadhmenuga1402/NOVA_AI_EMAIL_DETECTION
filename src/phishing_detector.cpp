@@ -5,8 +5,27 @@
 #include <iostream>
 #include <regex>
 #include <sstream>
+#include <unordered_set>
 
 using namespace std;
+
+
+static string sanitizeText(const string& text)
+{
+    string result;
+
+    for (char ch : text)
+    {
+        unsigned char c = static_cast<unsigned char>(ch);
+
+        if (c == '\t' || (c >= 32 && c < 127))
+        {
+            result += ch;
+        }
+    }
+
+    return result;
+}
 
 
 // ============================================================
@@ -44,34 +63,17 @@ PhishingDetector::extractURLs(
 {
     vector<string> urls;
 
+    string token;
 
-    regex urlPattern(
-        R"((https?://[^\s]+|www\.[^\s]+))",
-        regex::icase
-    );
+    auto flush = [&](const string& raw) {
 
+        if (raw.empty())
+        {
+            return;
+        }
 
-    sregex_iterator begin(
-        text.begin(),
-        text.end(),
-        urlPattern
-    );
+        string url = raw;
 
-
-    sregex_iterator end;
-
-
-    for (
-        sregex_iterator i = begin;
-        i != end;
-        ++i
-    )
-    {
-        string url =
-            (*i).str();
-
-
-        // Remove common punctuation
         while (
             !url.empty() &&
             (
@@ -79,20 +81,70 @@ PhishingDetector::extractURLs(
                 url.back() == ',' ||
                 url.back() == '!' ||
                 url.back() == '?' ||
-                url.back() == ')' 
+                url.back() == ')' ||
+                url.back() == ';'
             )
         )
         {
             url.pop_back();
         }
 
+        if (url.empty())
+        {
+            return;
+        }
 
-        urls.push_back(url);
+        string lower =
+            toLowerCase(url);
+
+        bool isUrl = false;
+
+        if (lower.rfind("http://", 0) == 0 ||
+            lower.rfind("https://", 0) == 0 ||
+            lower.rfind("www.", 0) == 0)
+        {
+            isUrl = true;
+        }
+        else
+        {
+            size_t slash =
+                url.find('/');
+
+            size_t dot =
+                url.find('.');
+
+            if (slash != string::npos &&
+                dot != string::npos &&
+                slash > dot)
+            {
+                isUrl = true;
+            }
+        }
+
+        if (isUrl)
+        {
+            urls.push_back(url);
+        }
+    };
+
+    for (char ch : text)
+    {
+        if (isspace(static_cast<unsigned char>(ch)))
+        {
+            flush(token);
+            token.clear();
+        }
+        else
+        {
+            token += ch;
+        }
     }
 
+    flush(token);
 
     return urls;
 }
+
 
 
 // ============================================================
@@ -104,16 +156,96 @@ PhishingDetector::isIPAddress(
     const string& url
 )
 {
-    regex ipPattern(
-        R"(https?://([0-9]{1,3}\.){3}[0-9]{1,3})",
-        regex::icase
-    );
+    string host = url;
 
+    size_t proto =
+        host.find("://");
 
-    return regex_search(
-        url,
-        ipPattern
-    );
+    if (proto != string::npos)
+    {
+        host =
+            host.substr(proto + 3);
+    }
+
+    size_t slash =
+        host.find('/');
+
+    if (slash != string::npos)
+    {
+        host =
+            host.substr(0, slash);
+    }
+
+    size_t colon =
+        host.find(':');
+
+    if (colon != string::npos)
+    {
+        host =
+            host.substr(0, colon);
+    }
+
+    if (host.empty())
+    {
+        return false;
+    }
+
+    // Validate four octets manually.
+    size_t pos = 0;
+
+    for (int i = 0; i < 4; ++i)
+    {
+        size_t dot =
+            host.find('.', pos);
+
+        string octet;
+
+        if (i < 3)
+        {
+            if (dot == string::npos)
+            {
+                return false;
+            }
+
+            octet =
+                host.substr(pos, dot - pos);
+
+            pos = dot + 1;
+        }
+        else
+        {
+            if (dot != string::npos)
+            {
+                return false;
+            }
+
+            octet =
+                host.substr(pos);
+        }
+
+        if (octet.empty() || octet.size() > 3)
+        {
+            return false;
+        }
+
+        for (char c : octet)
+        {
+            if (!isdigit(static_cast<unsigned char>(c)))
+            {
+                return false;
+            }
+        }
+
+        int value =
+            stoi(octet);
+
+        if (value < 0 || value > 255)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 
@@ -175,18 +307,30 @@ PhishingDetector::hasSuspiciousDomain(
     string lower =
         toLowerCase(url);
 
+    // Extract host for brand-legitimacy checks.
+    string host = lower;
 
-    vector<string> suspiciousWords =
+    size_t proto =
+        host.find("://");
+
+    if (proto != string::npos)
     {
-        "login",
-        "verify",
-        "verification",
-        "secure",
-        "account",
-        "update",
-        "password",
-        "bank",
-        "wallet",
+        host =
+            host.substr(proto + 3);
+    }
+
+    size_t slash =
+        host.find('/');
+
+    if (slash != string::npos)
+    {
+        host =
+            host.substr(0, slash);
+    }
+
+
+    vector<string> brandWords =
+    {
         "paypal",
         "microsoft",
         "google",
@@ -196,21 +340,37 @@ PhishingDetector::hasSuspiciousDomain(
         "facebook"
     };
 
-
-    for (
-        const string& word :
-        suspiciousWords
-    )
+    vector<string> genericWords =
     {
-        if (
-            lower.find(word)
-            != string::npos
-        )
+        "login",
+        "verify",
+        "verification",
+        "secure",
+        "account",
+        "update",
+        "password",
+        "bank",
+        "wallet"
+    };
+
+
+    for (const string& word : genericWords)
+    {
+        if (lower.find(word) != string::npos)
         {
             return true;
         }
     }
 
+    for (const string& brand : brandWords)
+    {
+        if (lower.find(brand) != string::npos &&
+            host.find(brand) == string::npos)
+        {
+            // Brand name appears outside its own host -> spoofing.
+            return true;
+        }
+    }
 
     return false;
 }
@@ -305,11 +465,19 @@ PhishingDetector::calculatePhishingScore(
     vector<string> urls =
         extractURLs(text);
 
+    // Deduplicate URLs so a repeated link cannot inflate the score.
+    vector<string> uniqueUrls;
+    unordered_set<string> seen;
 
-    if (urls.empty())
+    for (const string& url : urls)
     {
-        return 0;
+        if (seen.insert(url).second)
+        {
+            uniqueUrls.push_back(url);
+        }
     }
+
+    urls = uniqueUrls;
 
 
     int score = 0;
@@ -320,6 +488,12 @@ PhishingDetector::calculatePhishingScore(
         urls
     )
     {
+        if (score >= 100)
+        {
+            score = 100;
+            break;
+        }
+
         if (isIPAddress(url))
         {
             score += 30;
@@ -364,6 +538,28 @@ PhishingDetector::calculatePhishingScore(
     }
 
 
+    // Text-based phishing indicators (even without URLs).
+    string lowerText =
+        toLowerCase(text);
+
+    vector<string> phishingPhrases = {
+        "verify your account",
+        "confirm your password",
+        "click here",
+        "account blocked",
+        "login immediately",
+        "update your information",
+        "reset your password"
+    };
+
+    for (const string& phrase : phishingPhrases)
+    {
+        if (lowerText.find(phrase) != string::npos)
+        {
+            score += 10;
+        }
+    }
+
     if (score > 100)
     {
         score = 100;
@@ -386,6 +582,20 @@ PhishingDetector::displayAnalysis(
     vector<string> urls =
         extractURLs(text);
 
+    // Deduplicate for display consistency with scoring.
+    vector<string> uniqueUrls;
+    unordered_set<string> seen;
+
+    for (const string& url : urls)
+    {
+        if (seen.insert(url).second)
+        {
+            uniqueUrls.push_back(url);
+        }
+    }
+
+    urls = uniqueUrls;
+
 
     int score =
         calculatePhishingScore(text);
@@ -403,7 +613,9 @@ PhishingDetector::displayAnalysis(
     if (urls.empty())
     {
         cout << "URL Risk         : None\n";
-        cout << "Phishing Score   : 0/100\n";
+        cout << "Phishing Score   : "
+             << score
+             << "/100\n";
         return;
     }
 
@@ -414,11 +626,12 @@ PhishingDetector::displayAnalysis(
         i++
     )
     {
-        cout << "\nURL "
-             << i + 1
-             << " : "
-             << urls[i]
-             << "\n";
+         cout << "\nURL "
+              << i + 1
+              << " : "
+              << sanitizeText(urls[i])
+              << "\n";
+
 
 
         cout << "  IP Address     : "

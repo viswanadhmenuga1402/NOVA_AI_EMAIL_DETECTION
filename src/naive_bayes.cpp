@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <unordered_set>
 
 using namespace std;
 
@@ -79,7 +80,7 @@ vector<string> NaiveBayes::tokenize(
 // TRAIN
 // ============================================================
 
-void NaiveBayes::train(
+bool NaiveBayes::train(
     const string& filename
 )
 {
@@ -90,7 +91,7 @@ void NaiveBayes::train(
     {
         cerr << "\nERROR: Could not open dataset:\n";
         cerr << filename << "\n";
-        return;
+        return false;
     }
 
 
@@ -201,6 +202,13 @@ void NaiveBayes::train(
     cout << "Ham messages  : "
          << hamMessages
          << "\n";
+
+    if (spamMessages + hamMessages == 0)
+    {
+        return false;
+    }
+
+    return true;
 }
 
 
@@ -225,10 +233,23 @@ double NaiveBayes::spamProbability(
     // Vocabulary
     // --------------------------------------------------------
 
+    // Count the unique vocabulary across both classes so shared
+    // words are not double-counted in the Laplace smoothing
+    // denominator.
+    unordered_set<string> vocabulary;
+
+    for (const auto& entry : spamWords)
+    {
+        vocabulary.insert(entry.first);
+    }
+
+    for (const auto& entry : hamWords)
+    {
+        vocabulary.insert(entry.first);
+    }
+
     size_t vocabularySize =
-        spamWords.size()
-        +
-        hamWords.size();
+        vocabulary.size();
 
 
     if (vocabularySize == 0)
@@ -276,13 +297,13 @@ double NaiveBayes::spamProbability(
     double spamDenominator =
         spamWordCount
         +
-        alpha * vocabularySize;
+        alpha * static_cast<double>(vocabularySize);
 
 
     double hamDenominator =
         hamWordCount
         +
-        alpha * vocabularySize;
+        alpha * static_cast<double>(vocabularySize);
 
 
     // --------------------------------------------------------
@@ -373,6 +394,11 @@ double NaiveBayes::spamProbability(
         (
             spamExp + hamExp
         );
+
+    if (!isfinite(probability))
+    {
+        probability = 0.5;
+    }
 
 
     // --------------------------------------------------------
@@ -522,6 +548,8 @@ vector<string> NaiveBayes::getSuspiciousWords(
 
     vector<string> suspicious;
 
+    unordered_set<string> seenSuspicious;
+
 
     const vector<string> spamIndicators =
     {
@@ -555,30 +583,33 @@ vector<string> NaiveBayes::getSuspiciousWords(
         const string& word : words
     )
     {
-        if (
-            find(
-                spamIndicators.begin(),
-                spamIndicators.end(),
-                word
-            )
-            != spamIndicators.end()
-        )
-        {
-            if (
-                find(
-                    suspicious.begin(),
-                    suspicious.end(),
-                    word
-                )
-                ==
-                suspicious.end()
-            )
-            {
-                suspicious.push_back(word);
-            }
-        }
+         if (
+             find(
+                 spamIndicators.begin(),
+                 spamIndicators.end(),
+                 word
+             )
+             != spamIndicators.end()
+         )
+         {
+             if (seenSuspicious.insert(word).second)
+             {
+                 suspicious.push_back(word);
+             }
+         }
+
     }
 
 
     return suspicious;
+}
+
+
+// ============================================================
+// IS TRAINED
+// ============================================================
+
+bool NaiveBayes::isTrained() const
+{
+    return (spamMessages + hamMessages) > 0;
 }

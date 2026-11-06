@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile
+        shell: bash
+        run: |
+          g++ -std=c++17 -Iinclude \
+          src/main.cpp src/email.cpp src/naive_bayes.cpp src/email_scanner.cpp \
+          src/phishing_detector.cpp src/sender_analyzer.cpp src/explanation_engine.cpp \
+          src/risk_engine.cpp src/scan_history.cpp src/scan_report.cpp src/classifier.cpp \
+          src/evaluation.cpp \
+          -o build/NOVA_AI.exe
+      - name: Smoke test
+        shell: bash
+        run: echo "build ok"

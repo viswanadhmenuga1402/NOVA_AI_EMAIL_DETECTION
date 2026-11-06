@@ -9,6 +9,24 @@
 using namespace std;
 
 
+static string sanitizeText(const string& text)
+{
+    string result;
+
+    for (char ch : text)
+    {
+        unsigned char c = static_cast<unsigned char>(ch);
+
+        if (c == '\t' || (c >= 32 && c < 127))
+        {
+            result += ch;
+        }
+    }
+
+    return result;
+}
+
+
 void ScanReport::saveReport(
     const string& sender,
     const string& subject,
@@ -40,6 +58,8 @@ void ScanReport::saveReport(
     time_t currentTime =
         time(nullptr);
 
+    char* timeString =
+        ctime(&currentTime);
 
     file << "============================================\n";
     file << "              NOVA AI REPORT\n";
@@ -47,12 +67,12 @@ void ScanReport::saveReport(
 
 
     file << "Sender        : "
-         << sender
+         << sanitizeText(sender)
          << "\n";
 
 
     file << "Subject       : "
-         << subject
+         << sanitizeText(subject)
          << "\n";
 
 
@@ -99,7 +119,7 @@ void ScanReport::saveReport(
     for (const string& word : suspiciousWords)
     {
         file << "- "
-             << word
+             << sanitizeText(word)
              << "\n";
     }
 
@@ -110,7 +130,7 @@ void ScanReport::saveReport(
     for (const string& url : urls)
     {
         file << "- "
-             << url
+             << sanitizeText(url)
              << "\n";
     }
 
@@ -121,7 +141,7 @@ void ScanReport::saveReport(
     for (const string& keyword : keywords)
     {
         file << "- "
-             << keyword
+             << sanitizeText(keyword)
              << "\n";
     }
 
@@ -132,7 +152,7 @@ void ScanReport::saveReport(
     for (const string& word : urgency)
     {
         file << "- "
-             << word
+             << sanitizeText(word)
              << "\n";
     }
 
@@ -143,7 +163,7 @@ void ScanReport::saveReport(
     for (const string& request : security)
     {
         file << "- "
-             << request
+             << sanitizeText(request)
              << "\n";
     }
 
@@ -151,8 +171,16 @@ void ScanReport::saveReport(
     file << "\n============================================\n";
 
 
-    file << "Generated: "
-         << ctime(&currentTime);
+    file << "Generated: ";
+
+    if (timeString != nullptr)
+    {
+        file << timeString;
+    }
+    else
+    {
+        file << "Unknown time\n";
+    }
 
 
     file << "============================================\n";

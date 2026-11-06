@@ -11,7 +11,6 @@
 #include "phishing_detector.h"
 #include "sender_analyzer.h"
 #include "explanation_engine.h"
-#include "risk_engine.h"
 #include "scan_report.h"
 
 using namespace std;
@@ -36,6 +35,28 @@ void printList(const vector<string>& items)
         if (i + 1 < items.size())
             cout << ", ";
     }
+}
+
+
+// ============================================================
+// SANITIZE TEXT (remove control characters)
+// ============================================================
+
+string sanitizeText(const string& text)
+{
+    string result;
+
+    for (char ch : text)
+    {
+        unsigned char c = static_cast<unsigned char>(ch);
+
+        if (c == '\t' || (c >= 32 && c < 127))
+        {
+            result += ch;
+        }
+    }
+
+    return result;
 }
 
 
@@ -88,7 +109,6 @@ void scanEmail(
     PhishingDetector phishing;
     SenderAnalyzer senderAnalyzer;
     ExplanationEngine explanation;
-    RiskEngine riskEngine;
 
 
     cout << "\n";
@@ -128,10 +148,19 @@ void scanEmail(
     {
         cout << "> ";
 
-        getline(cin, bodyLine);
+        if (!getline(cin, bodyLine))
+        {
+            break;
+        }
 
         if (bodyLine == "END")
             break;
+
+        if (email.body.size() + bodyLine.size() + 1 > 1000000)
+        {
+            cout << "\nEmail input is too large.\n";
+            return;
+        }
 
         email.body += bodyLine;
         email.body += "\n";
@@ -142,10 +171,22 @@ void scanEmail(
     // EMPTY EMAIL CHECK
     // ========================================================
 
+    auto isEmptyOrWhitespace = [](const string& value) {
+        return value.find_first_not_of(" \t\r\n") == string::npos;
+    };
+
+    if (email.sender.size() > 100000 ||
+        email.subject.size() > 100000 ||
+        email.body.size() > 1000000)
+    {
+        cout << "\nEmail input is too large.\n";
+        return;
+    }
+
     if (
-        email.sender.empty() &&
-        email.subject.empty() &&
-        email.body.empty()
+        isEmptyOrWhitespace(email.sender) &&
+        isEmptyOrWhitespace(email.subject) &&
+        isEmptyOrWhitespace(email.body)
     )
     {
         cout << "\nEmail cannot be empty.\n";
@@ -262,10 +303,10 @@ void scanEmail(
         securityScore * 0.15;
 
     double phishingContribution =
-        phishingScore * 0.20;
+        phishingScore * 0.15;
 
     double senderContribution =
-        senderRisk * 0.05;
+        senderRisk * 0.10;
 
 
     double finalScore =
@@ -333,11 +374,11 @@ void scanEmail(
     cout << "============================================\n";
 
     cout << "\nSender  : "
-         << email.sender
+         << sanitizeText(email.sender)
          << '\n';
 
     cout << "Subject : "
-         << email.subject
+         << sanitizeText(email.subject)
          << '\n';
 
 
@@ -599,9 +640,16 @@ int main()
 
     cout << "\nLoading ML dataset...\n";
 
-    model.train(
-        "data/sms+spam+collection/SMSSpamCollection"
-    );
+    bool loaded =
+        model.train(
+            "data/sms+spam+collection/SMSSpamCollection"
+        );
+
+    if (!loaded)
+    {
+        cout << "ML model failed to load. Exiting.\n";
+        return 1;
+    }
 
     cout << "ML model loaded successfully.\n";
 
@@ -630,10 +678,13 @@ int main()
 
         string choice;
 
-        getline(
+        if (!getline(
             cin,
             choice
-        );
+        ))
+        {
+            break;
+        }
 
 
         if (choice == "1")

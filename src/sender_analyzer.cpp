@@ -32,6 +32,25 @@ static string toLowerCase(string text)
 
 
 // ============================================================
+// TRIM HELPER
+// ============================================================
+
+static string trim(const string& text)
+{
+    size_t start = text.find_first_not_of(" \t\r\n");
+
+    if (start == string::npos)
+    {
+        return "";
+    }
+
+    size_t end = text.find_last_not_of(" \t\r\n");
+
+    return text.substr(start, end - start + 1);
+}
+
+
+// ============================================================
 // EXTRACT DOMAIN
 // ============================================================
 
@@ -39,8 +58,11 @@ string SenderAnalyzer::extractDomain(
     const string& email
 )
 {
+    string trimmed =
+        trim(email);
+
     size_t at =
-        email.find('@');
+        trimmed.find('@');
 
 
     if (at == string::npos)
@@ -49,14 +71,14 @@ string SenderAnalyzer::extractDomain(
     }
 
 
-    if (at + 1 >= email.length())
+    if (at + 1 >= trimmed.length())
     {
         return "";
     }
 
 
     string domain =
-        email.substr(at + 1);
+        trimmed.substr(at + 1);
 
 
     return toLowerCase(domain);
@@ -71,15 +93,87 @@ bool SenderAnalyzer::isValidEmailFormat(
     const string& email
 )
 {
-    regex pattern(
-        R"(^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$)"
-    );
+    string trimmed =
+        trim(email);
 
+    if (trimmed.empty() || trimmed.size() > 254)
+    {
+        return false;
+    }
 
-    return regex_match(
-        email,
-        pattern
-    );
+    size_t at =
+        trimmed.find('@');
+
+    if (at == string::npos ||
+        at == 0 ||
+        at == trimmed.size() - 1)
+    {
+        return false;
+    }
+
+    if (trimmed.find('@', at + 1) != string::npos)
+    {
+        return false;
+    }
+
+    string local =
+        trimmed.substr(0, at);
+
+    string domain =
+        trimmed.substr(at + 1);
+
+    if (local.empty() || domain.empty())
+    {
+        return false;
+    }
+
+    if (domain.find('.') == string::npos)
+    {
+        return false;
+    }
+
+    if (domain.front() == '.' ||
+        domain.back() == '.' ||
+        domain.front() == '-' ||
+        domain.back() == '-')
+    {
+        return false;
+    }
+
+    size_t lastDot =
+        domain.rfind('.');
+
+    if (lastDot == string::npos ||
+        lastDot == domain.size() - 1)
+    {
+        return false;
+    }
+
+    string tld =
+        domain.substr(lastDot + 1);
+
+    if (tld.size() < 2)
+    {
+        return false;
+    }
+
+    for (char c : tld)
+    {
+        if (!isalpha(static_cast<unsigned char>(c)))
+        {
+            return false;
+        }
+    }
+
+    for (char c : trimmed)
+    {
+        if (isspace(static_cast<unsigned char>(c)))
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 
@@ -189,16 +283,62 @@ bool SenderAnalyzer::hasIPAddress(
         return false;
     }
 
+    // Validate four octets manually (linear, ReDoS-safe).
+    size_t pos = 0;
 
-    regex ipPattern(
-        R"(^([0-9]{1,3}\.){3}[0-9]{1,3}$)"
-    );
+    for (int i = 0; i < 4; ++i)
+    {
+        size_t dot =
+            domain.find('.', pos);
 
+        string octet;
 
-    return regex_match(
-        domain,
-        ipPattern
-    );
+        if (i < 3)
+        {
+            if (dot == string::npos)
+            {
+                return false;
+            }
+
+            octet =
+                domain.substr(pos, dot - pos);
+
+            pos = dot + 1;
+        }
+        else
+        {
+            if (dot != string::npos)
+            {
+                return false;
+            }
+
+            octet =
+                domain.substr(pos);
+        }
+
+        if (octet.empty() || octet.size() > 3)
+        {
+            return false;
+        }
+
+        for (char c : octet)
+        {
+            if (!isdigit(static_cast<unsigned char>(c)))
+            {
+                return false;
+            }
+        }
+
+        int value =
+            stoi(octet);
+
+        if (value < 0 || value > 255)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 
@@ -210,17 +350,20 @@ int SenderAnalyzer::calculateSenderRisk(
     const string& email
 )
 {
+    string trimmed =
+        trim(email);
+
     int score = 0;
 
 
-    if (!isValidEmailFormat(email))
+    if (!isValidEmailFormat(trimmed))
     {
         score += 40;
     }
 
 
     string domain =
-        extractDomain(email);
+        extractDomain(trimmed);
 
 
     if (domain.empty())
@@ -229,7 +372,7 @@ int SenderAnalyzer::calculateSenderRisk(
     }
 
 
-    if (hasIPAddress(email))
+    if (hasIPAddress(trimmed))
     {
         score += 40;
     }
@@ -291,8 +434,6 @@ void SenderAnalyzer::displayAnalysis(
     if (email.empty())
     {
         cout << "Sender           : Not provided\n";
-        cout << "Sender Risk      : 0/100\n";
-        return;
     }
 
 

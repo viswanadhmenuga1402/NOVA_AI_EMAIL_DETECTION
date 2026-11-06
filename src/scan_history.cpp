@@ -163,11 +163,22 @@ void ScanHistory::saveScan(
     double finalScore
 )
 {
+    (void)email;
+
     ScanRecord record;
 
+    int maxId = 0;
+
+    for (const ScanRecord& existing : records)
+    {
+        if (existing.id > maxId)
+        {
+            maxId = existing.id;
+        }
+    }
 
     record.id =
-        static_cast<int>(records.size()) + 1;
+        maxId + 1;
 
 
     record.classification =
@@ -438,19 +449,21 @@ void ScanHistory::displayStatistics()
 
 void ScanHistory::clearHistory()
 {
-    records.clear();
-
-
     ofstream file(
         "scan_history.txt",
         ios::trunc
     );
 
 
-    if (file.is_open())
+    if (!file.is_open())
     {
-        file.close();
+        cout << "\nUnable to clear scan history.\n";
+        return;
     }
+
+    file.close();
+
+    records.clear();
 
 
     cout << "\n";

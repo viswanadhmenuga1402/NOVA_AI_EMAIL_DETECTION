@@ -14,7 +14,7 @@ bool isSpam(string email)
     string word;
 
     // Open spam words file
-    ifstream file("spam_words.txt");
+    ifstream file("data/spam_words.txt");
 
     if (!file)
     {
