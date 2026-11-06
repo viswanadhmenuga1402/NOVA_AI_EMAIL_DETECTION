@@ -1,0 +1,190 @@
+NOVA AI - Intelligent Email Threat Detection System
+====================================================
+
+PROJECT OVERVIEW
+----------------
+NOVA AI is a C++17 console application that detects spam/phishing emails.
+It combines Naive Bayes machine learning, rule-based security analysis,
+phishing detection, sender reputation analysis, and a weighted risk engine.
+It also provides explainable AI reports, scan history, and statistics.
+
+REPOSITORY
+----------
+https://github.com/viswanadhmenuga1402/NOVA_AI_EMAIL_DETECTION.git
+
+PROJECT STRUCTURE
+-----------------
+NOVA_AI_EMAIL_DETECTION/
+  README.md
+  LICENSE.txt
+  .gitignore
+  include/        (header files)
+  src/            (source files)
+  data/           (training data and spam words)
+  docs/           (architecture, presentation, testing, screenshots)
+  reports/        (generated at runtime, ignored by git)
+  build/          (compiled binaries, ignored by git)
+
+SOURCE FILES
+------------
+src/main.cpp
+src/email.cpp
+src/naive_bayes.cpp
+src/email_scanner.cpp
+src/phishing_detector.cpp
+src/sender_analyzer.cpp
+src/explanation_engine.cpp
+src/risk_engine.cpp
+src/scan_history.cpp
+src/scan_report.cpp
+src/classifier.cpp
+src/evaluation.cpp
+
+HEADER FILES
+-----------
+include/email.h
+include/naive_bayes.h
+include/email_scanner.h
+include/phishing_detector.h
+include/sender_analyzer.h
+include/explanation_engine.h
+include/risk_engine.h
+include/scan_history.h
+include/scan_report.h
+include/classifier.h
+
+DATA FILES
+----------
+data/spam_text.txt
+data/spam_words.txt
+data/sms+spam+collection/SMSSpamCollection
+
+FEATURES
+--------
+- Naive Bayes spam classification
+- Phishing URL detection
+- Sender reputation analysis
+- Spam keyword detection
+- Suspicious word detection
+- Weighted risk score
+- Explainable AI report
+- Scan history
+- Detailed scan reports
+- Statistics
+- Multi-line email input
+- Console interface
+
+RISK FORMULA
+------------
+Final Risk =
+60% Machine Learning +
+15% Security +
+15% Phishing +
+10% Sender Reputation
+
+REQUIREMENTS
+------------
+- Windows 10/11
+- MSYS2 (UCRT64) or MinGW-w64
+- g++ with C++17 support
+
+INSTALL MSYS2 (WINDOWS)
+-----------------------
+1. Download MSYS2 from https://www.msys2.org/
+2. Install to C:\msys64
+3. Open "MSYS2 UCRT64" terminal
+4. Update packages:
+   pacman -Syu
+   (close and reopen terminal if asked)
+   pacman -Su
+5. Install toolchain:
+   pacman -S --needed base-devel mingw-w64-ucrt-x86_64-toolchain
+
+BUILD COMMANDS (MSYS2 UCRT64)
+-----------------------------
+Open "MSYS2 UCRT64" terminal and go to project folder:
+   cd /c/Users/Viswanadh/OneDrive/Documents/NOVA_AI_EMAIL_DETECTION
+
+Create build folder:
+   mkdir -p build
+
+Compile:
+   g++ -std=c++17 -Iinclude \
+   src/main.cpp \
+   src/email.cpp \
+   src/naive_bayes.cpp \
+   src/email_scanner.cpp \
+   src/phishing_detector.cpp \
+   src/sender_analyzer.cpp \
+   src/explanation_engine.cpp \
+   src/risk_engine.cpp \
+   src/scan_history.cpp \
+   src/scan_report.cpp \
+   src/classifier.cpp \
+   src/evaluation.cpp \
+   -o build/NOVA_AI.exe
+
+Alternative single-line command:
+   g++ -std=c++17 -Iinclude src/*.cpp -o build/NOVA_AI.exe
+
+RUN THE PROJECT
+---------------
+From MSYS2 UCRT64:
+   ./build/NOVA_AI.exe
+
+From Windows Command Prompt or PowerShell:
+   .\build\NOVA_AI.exe
+
+HOW TO USE
+----------
+1. Start the program.
+2. Choose menu options:
+   - Scan a new email
+   - View scan history
+   - View latest report
+   - View statistics
+   - Exit
+3. For email scan, enter sender email, subject, and multi-line body.
+   Type END on a new line to finish body input.
+4. Review the risk score and explanation report.
+
+GENERATED FILES (RUNTIME)
+-------------------------
+- scan_history.txt
+- latest_scan_report.txt
+These are ignored by git and created in the working directory.
+
+CLEAN BUILD
+-----------
+rm -rf build
+mkdir build
+g++ -std=c++17 -Iinclude src/*.cpp -o build/NOVA_AI.exe
+
+GIT COMMANDS
+------------
+Clone:
+   git clone https://github.com/viswanadhmenuga1402/NOVA_AI_EMAIL_DETECTION.git
+
+Check status:
+   git status
+
+Add all changes:
+   git add .
+
+Commit:
+   git commit -m "your message"
+
+Push:
+   git push origin main
+
+TROUBLESHOOTING
+---------------
+- If g++ is not found, install MSYS2 toolchain.
+- If header not found, ensure -Iinclude is used.
+- If build folder missing, create it with mkdir -p build.
+- If old binaries cause issues, delete build folder and rebuild.
+- If push is rejected due to email privacy, use GitHub noreply email in git config.
+
+LICENSE
+-------
+MIT License (see LICENSE.txt)
